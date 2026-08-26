@@ -59,7 +59,7 @@ SlashCmdList["QUESTIEOCTO"]=function(msg)
   elseif msg=="help" then
     QuestieOcto:Print("/qo -- toggle Questie-Octo options")
     QuestieOcto:Print("/qo quests -- open the Quests browser")
-    QuestieOcto:Print("/qo options, /qo info, /qo perf, /qo minimap, /qo api, /qo resync, /qo questlog, /qo map")
+    QuestieOcto:Print("/qo options, /qo info, /qo perf, /qo minimap, /qo nameplates, /qo api, /qo resync, /qo questlog, /qo map")
 
   elseif msg=="perf" then
     local now=GetTime and GetTime() or 0
@@ -390,7 +390,13 @@ SlashCmdList["QUESTIEOCTO"]=function(msg)
     local q=QuestieOcto.QuestModel:Get(178)
     if not q then
       QuestieOcto:Print("quest 178 model unavailable")
-    else
+
+  elseif msg=="nameplates" then
+    local np=QuestieOcto.Nameplates
+    local tracked=0
+    for _ in pairs(np.iconMap or {}) do tracked=tracked+1 end
+    QuestieOcto:Print("nameplates enabled="..Bool(np:IsEnabled()).." icons tracked="..tostring(tracked))
+      else
       QuestieOcto:Print("quest178 title="..tostring(q.title)..
         " level="..tostring(q.level)..
         " required="..tostring(q.requiredLevel))

@@ -58,6 +58,7 @@ Map\MinimapSettings.lua
 UI\ZoneLevelRange.lua
 Quest\Automation.lua
 Map\Minimap.lua
+Map\Nameplates.lua
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
 Libs\AceCore-3.0\AceCore-3.0.xml

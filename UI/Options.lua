@@ -487,6 +487,32 @@ local function CreateTrackerTab()
   }
 end
 
+local function CreateNameplatesTab()
+return {
+  name="Nameplates", type="group", order=14,
+  args={
+    header={type="header",order=1,name="Nameplate Options"},
+    enabled={type="toggle",order=2,name="Show Quest Icons on Nameplates",
+      desc="Show a sword or bag icon over nameplates of your active kill/loot objectives.",
+      width="full",
+      get=function() return QuestieOcto.Nameplates:IsEnabled() end,
+      set=function(_,v) QuestieOcto.Nameplates:SetEnabled(v) end},
+      scale={type="range",order=3,name="Icon Scale",desc="Adjust nameplate icon size.",
+        width="double",min=0.5,max=3,step=0.1,
+        get=function() return QuestieOcto.Nameplates:GetScale() end,
+        set=function(_,v) QuestieOcto.Nameplates:SetScale(v) end},
+        x={type="range",order=4,name="Icon X Offset",width="double",min=-60,max=60,step=1,
+          get=function() local x=QuestieOcto.Nameplates:GetOffset() return x end,
+          set=function(_,v) local _,y=QuestieOcto.Nameplates:GetOffset() QuestieOcto.Nameplates:SetOffset(v,y) end},
+          y={type="range",order=5,name="Icon Y Offset",width="double",min=-60,max=60,step=1,
+            get=function() local _,y=QuestieOcto.Nameplates:GetOffset() return y end,
+            set=function(_,v) local x=QuestieOcto.Nameplates:GetOffset() QuestieOcto.Nameplates:SetOffset(x,v) end},
+            reset={type="execute",order=6,name="Reset Position",
+              func=function() QuestieOcto.Nameplates:ResetPosition() end},
+  },
+}
+end
+
 local function CreateTooltipTab()
   return {
     name="Tooltips", type="group", order=13,
@@ -546,6 +572,7 @@ local function CreateOptionsTable()
       tracker_tab=CreateTrackerTab(),
       tooltip_tab=CreateTooltipTab(),
       quests_tab=CreateQuestTab(),
+      nameplates_tab=CreateNameplatesTab(),
     },
   }
 end
