@@ -22,6 +22,7 @@ for _,name in ipairs(turtle) do load("Data/pfDB/"..name.."-turtle.lua") end
 for _,name in ipairs(en) do load("Data/pfDB/enUS/"..name.."-turtle.lua") end
 load("Data/pfDB/overwrites-octo.lua")
 load("Data/PvPQuestTypes.lua")
+load("Data/EliteQuestTypes.lua")
 load("Data/pfDB/enrichment.lua")
 
 local DATASETS={"items","quests","quests-itemreq","objects","units","zones","professions","areatrigger","refloot","minimap","meta"}

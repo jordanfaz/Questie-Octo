@@ -752,14 +752,14 @@ function T:Render()
     self:AddRow(prefix..title,"quest",quest.id,quest.complete,quest.level,quest.failed)
     self:AddTimerRow(quest)
 
-    -- A completed quest is represented by "(Complete)" in its title, matching
-    -- the classic Questie/Quest Log presentation. Do not keep redundant 8/8,
-    -- 10/10, etc. objective rows beneath an already-complete quest.
-    if not quest.complete then
-      for j=1,table.getn(quest.objectives or {}) do
-        local objective=quest.objectives[j]
-        self:AddRow(ObjectiveDisplayText(objective),"objective",nil,objective.complete)
-      end
+    -- TrackerDriver already applies the Hide Completed Objectives setting to
+    -- quest.objectives. Render whatever survives that filter even when the
+    -- whole quest is complete, so OFF means completed objective rows remain
+    -- visible and ON hides them consistently for partial and fully-complete
+    -- quests alike.
+    for j=1,table.getn(quest.objectives or {}) do
+      local objective=quest.objectives[j]
+      self:AddRow(ObjectiveDisplayText(objective),"objective",nil,objective.complete)
     end
   end
 

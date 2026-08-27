@@ -1,3 +1,25 @@
+1.0.83 - COMPLETED QUEST OBJECTIVE VISIBILITY
+------------------------------------------------
+- Audited the reported completed War Banners tracker row against the accepted 1.0.82 source. TrackerDriver already respected `trackerHideCompletedObjectives`: when OFF it retained completed objectives, and when ON it filtered them out.
+- Found a second unconditional renderer gate in TrackerFrame: fully completed quests never iterated their objective rows at all. This made the Hide Completed Objectives setting ineffective whenever the whole quest was complete, even though the filtered objective state was correct.
+- Removed only that redundant renderer gate. TrackerFrame now renders exactly the objective list prepared by TrackerDriver, making the existing setting authoritative for both partially completed and fully completed quests.
+- No quest-log state, completion truth, sorting, tracker persistence, timers, map/minimap behavior, database data, events, polling, OnUpdate work, or background allocations changed.
+
+1.0.82 - CACHE-COLD AVAILABLE QUEST DIFFICULTY MARKERS
+--------------------------------------------------------
+- Re-audited the failed 1.0.81 available-quest `+` marker against ClassicAPI.dll, pfQuest-classicAPI, the compiled Questie-Octo database, and the current Tortoise quest_template source. ClassicAPI's C_QuestLog.GetQuestDetails() is cache-backed: pfQuest itself falls back to shipped quest text when that call returns nil for cache-cold quests. Therefore an unaccepted available quest cannot rely on that API to expose questType.
+- Confirmed Questie-Octo's compiled runtime preserved sparse PvP Type 41 but did not preserve the server's Elite (1), Raid (62), or Dungeon (81) types. The reported Crescent Grove quests 40089/40090 are Type 81 in the current quest_template, and 41756 is Type 81 in the current database-update quest snapshot.
+- Added a sparse build-time EliteQuestTypes projection for every runtime quest currently classified Type 1/62/81 by the supplied server quest_template (1,294 quests total). The compiler applies those values to the existing quest records, so QuestModel.questType is available before acceptance without an additional runtime lookup table.
+- Active quests still prefer the native GetQuestLogTitle().tag, preserving exact live behavior. Available quests use the compiled canonical server type. Removed the ineffective per-tooltip ClassicAPI quest-type lookup/cache from Map/Tooltips.lua.
+- No new event, OnUpdate, timer, polling loop, map scan, creature-rank inference, or persistent runtime cache was added. The runtime quest record gains only the canonical type field for the 1,294 affected quests.
+
+1.0.81 - ELITE / DUNGEON / RAID MAP TOOLTIP MARKER
+---------------------------------------------------
+- Audited the missing `+` report against the current 1.0.80 tooltip path, native Quest Log tag handling, ClassicAPI, and current Turtle server quest types. The tracker already preserved native GetQuestLogTitle().tag as `[level+]`, but Map/Tooltips.lua rendered only `[level]`, so active tagged quests lost the marker on World Map/minimap hover.
+- Confirmed the reported Crescent Grove quests 40089/40090 and Dragonmaw Retreat quest 41756 are current server quest Type 81 (Dungeon). QuestDef.h defines Type 1 = Elite, 62 = Raid, and 81 = Dungeon.
+- Map/minimap quest titles now append `+` for active quests carrying the native Quest Log tag. For available quests that are not yet in the Quest Log, the tooltip asks required ClassicAPI's C_QuestLog.GetQuestDetails(questID) for questType and marks only Elite/Raid/Dungeon types. A tiny per-hovered-quest type cache prevents repeated C API lookups.
+- No map nodes, icons, coordinates, quest availability, objective state, database records, polling loops, OnUpdate paths, or background scans were changed.
+
 1.0.80 - ITEM-START RARE SOURCE THRESHOLD 1.00%
 ---------------------------------------------------
 - Raised `ItemStartAreas.zoneWideRareThreshold` from 0.50% to 1.00% to reduce World Map/minimap clutter from very low-drop-rate item-start quests.

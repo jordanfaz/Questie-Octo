@@ -1,5 +1,17 @@
 # Questie-Octo Changelog
 
+## 1.0.83
+- Fixed **Hide Completed Objectives** being ignored for fully completed quests in the tracker.
+- With the option OFF, completed objective lines remain visible beneath completed quests; with it ON, they are hidden as expected.
+
+## 1.0.82
+- Fixed the `+` difficulty marker for available Elite, Dungeon, and Raid quests that have not yet been loaded into the client quest cache.
+- World Map and minimap tooltips now use the server quest type stored in Questie-Octo's compiled data, so dungeon/elite quests such as **The Rampant Groveweald** and **The Unwise Elders** show `[level+]` before acceptance.
+
+## 1.0.81
+- Added a `+` beside the quest level in World Map and minimap tooltips for Elite, Dungeon, and Raid quests.
+- Available dungeon/elite quests now show the same difficulty cue before they are accepted, while active quests continue to follow the native Quest Log tag.
+
 ## 1.0.80
 - Reduced item-start quest map clutter by treating drop sources below **1.00%** as rare area markers instead of showing every individual source location.
 - Item-start sources at exactly **1.00%** or higher continue to use the normal detailed source presentation.

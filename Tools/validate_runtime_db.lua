@@ -57,6 +57,7 @@ for _,n in ipairs({"items","units","objects","refloot","quests-itemreq","quests"
 for _,n in ipairs({"items","units","objects","quests","zones","professions"}) do load("Data/pfDB/enUS/"..n.."-turtle.lua") end
 load("Data/pfDB/overwrites-octo.lua")
 load("Data/PvPQuestTypes.lua")
+load("Data/EliteQuestTypes.lua")
 load("Data/pfDB/enrichment.lua")
 local field={items=true,quests=true,objects=true,units=true}
 for _,n in ipairs({"items","quests","quests-itemreq","objects","units","zones","professions","areatrigger","refloot","minimap","meta"}) do

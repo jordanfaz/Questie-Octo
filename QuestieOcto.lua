@@ -2,7 +2,7 @@
 QuestieOcto = QuestieOcto or {}
 local QO = QuestieOcto
 
-QO.version = "1.0.80"
+QO.version = "1.0.83"
 QO.enabled = false
 QO.ready = false
 -- Release packages use Questie-Octo's private compiled runtime database.

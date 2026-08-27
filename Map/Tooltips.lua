@@ -114,10 +114,30 @@ function T:Hide(pin)
   end
 end
 
+local function IsEliteQuestType(questType)
+  questType=tonumber(questType)
+  return questType==1 or questType==62 or questType==81
+end
+
+local function QuestHasEliteMarker(q)
+  if not q then return false end
+
+  -- For active quests the native Quest Log tag is the strongest authority and
+  -- matches the tracker exactly.
+  local questID=tonumber(q.id)
+  local active=questID and QuestieOcto.QuestLog and QuestieOcto.QuestLog.active and QuestieOcto.QuestLog.active[questID] or nil
+  if active and active.tag then return true end
+
+  -- Available quests can be cache-cold, so ClassicAPI GetQuestDetails() may
+  -- return nil until the client has loaded that quest. The compiled quest model
+  -- therefore preserves the server's canonical Type 1/62/81 for this purpose.
+  return IsEliteQuestType(q.questType)
+end
+
 local function QuestTitle(q)
   local title=tostring(q.title or ("Quest "..tostring(q.id or "")))
   if Settings():Get("enableTooltipsQuestLevel") then
-    title="["..tostring(q.level or 0).."] "..title
+    title="["..tostring(q.level or 0)..(QuestHasEliteMarker(q) and "+" or "").."] "..title
   end
   if Settings():Get("enableTooltipsQuestID") then
     title=title.." ("..tostring(q.id or 0)..")"
