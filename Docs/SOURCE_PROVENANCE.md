@@ -257,3 +257,49 @@ The user-supplied Atlas-CFM snapshot was inspected as a reference-only source fo
 Live verification of Oink, Oink! established a quest state that should not be flattened into the ordinary static `repeatable` flag: the first offer is an ordinary quest, while later offers are repeatable after that character completes it once. Questie-Octo records that semantic explicitly as `repeatableAfterFirstCompletion` and derives the active state from per-character completion history.
 
 This distinction is important because `QuestieOctoGlobalDB.observedRepeatableQuests` is shared across characters. A global observation must not turn another character's first offer blue. Future audits should use the staged semantic whenever current data/live behavior proves the same ordinary-first / repeatable-afterward lifecycle. The first offer follows ordinary quest visibility/automation; after the first completion, normal repeatable visibility and `Include Repeatable Quests` automation rules apply.
+## 2026-08-29 licensing/provenance hardening pass
+
+This pass was performed against accepted Questie-Octo 1.0.84 and is
+documentation/offline-tooling only. All TOC-loaded runtime files, all quest/map
+data, and all binary artwork remain byte-for-byte unchanged.
+
+Additional source facts recorded:
+
+- canonical project repository verified at
+  `https://github.com/SandreaSub/Questie-Octo`; downstream mirrors/forks are
+  documented as independent in `PROJECT_IDENTITY.md`;
+- current CurseForge metadata identifies Questie as GPLv3, and the Questie
+  v6.0.0 CurseForge file page also displays GPLv3 project metadata; the supplied
+  5.2.3/6.0.0 ZIPs still contain no project-level Questie license file, so both
+  facts are retained rather than silently reconciling them;
+- the supplied Tortoise/Turtle server-source snapshot carries AGPLv3 at its
+  repository root; the exact text is preserved in
+  `LICENSES/Tortoise-AGPL-3.0.txt`;
+- every binary under `UI/Icons/` now has a SHA-256 provenance row in
+  `Docs/ASSET_PROVENANCE.md` and `Tools/provenance_assets.tsv`; exact matches,
+  historical attributions, project-supplied conversions, and unresolved files
+  are distinguished explicitly;
+- `Tools/verify_provenance.py` is an optional offline checker and is not loaded
+  by WoW or wired into addon startup.
+
+Current supplied reference hashes used for this pass:
+
+- Questie-Octo 1.0.84: `3f26872c887709099c03e180690c11e223b27219754d627342260f9671719c6d`
+- Questie 5.2.3: `806a12d894a9d8568b73d86a95aeda79f29bebf90320a5f0007bec8db9803335`
+- Questie 6.0.0: `de997f793871b898f6a8f9f6494b79fcd55fc82f8e087b88a026a3dfc99550b9`
+- Ace3v: `0482801133653d0e611e29335b22e77ad3de05a14ab8c35c163eb3f05eaaebeb`
+- pfQuest-classicAPI-octo: `6f516c3d899bade909de1e79ddd55bd6f3eade9017541fdf3e5bb5c58c723d34`
+- pfQuest-octo 1.1.6: `674deb7b811af17f23641327d9ac5d83991060c3752a97654bca66e548daf679`
+- Tortoise/Turtle server source: `ed3b3638f26733d30993e0d2a1fac1e31a0738d5f66bd11a23c52509f7d47ee9`
+- BlizzardInterfaceCode: `c8b9867f8ffa1dc721bd453af5f8fb0674feec2f4fe6d16163ae6dcbadfd2117`
+- DBFilesClient: `5ea0f15b14803b20848f4063f9af4a98bf8088a76a0eb1bd1eb780b56682bd05`
+- pfUI-classicAPI-octo: `5b4ed17b4ca94712ea7cc35cd86f31dfdc7b5d94a83bb51abb3cfca2e8e4911b`
+- DragonflightUI-Reforged: `2c08e1ae203f54d7969262b65056d58d5e9e8c26f3b61f2c935ff0825525ac68`
+- Calendar reference: `f4418d71aaf86fcc1067f3f02b7291aab6f3c37bb4d607a440127879270553a9`
+
+This documentation does not assert that the project's licensing questions are
+legally foolproof. In particular, whether historical code/artwork constitutes a
+derivative/covered work and whether particular game-derived artwork was
+licensable by an upstream project can require rights-holder evidence or legal
+advice beyond source-provenance auditing.
+

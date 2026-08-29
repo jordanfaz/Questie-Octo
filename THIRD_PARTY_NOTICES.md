@@ -79,6 +79,30 @@ are no longer available in the current project workspace. Their provenance is
 nevertheless retained in existing Questie-Octo comments and documentation and
 should not be erased by future human or AI-assisted changes.
 
+## Questie license metadata clarification (2026-08-29)
+
+The current public Questie project page on CurseForge identifies Questie as
+**GNU General Public License version 3 (GPLv3)**. The CurseForge file page for
+Questie v6.0.0 also displays GPLv3 project license metadata. Those public
+metadata checks supplement, but do not erase, the historical packaging fact
+recorded above: the supplied Questie 5.2.3 and 6.0.0 ZIPs themselves contained
+no project-level Questie license file.
+
+References:
+
+- https://www.curseforge.com/wow/addons/questie
+- https://www.curseforge.com/wow/addons/questie/files/2994198
+
+A standard GPLv3 text is included at `LICENSES/GPL-3.0.txt`, and the distinction
+is recorded in `LICENSES/Questie-LICENSE-METADATA.txt`. Questie-derived material
+is not covered by the original-contribution MIT grant merely because it is
+bundled with Questie-Octo. To the extent GPL terms apply to copied/derived
+Questie material or a combined work, those terms must be respected.
+
+Individual artwork is tracked separately in `Docs/ASSET_PROVENANCE.md`; the
+project does not assume that Questie's project-level license proves ownership
+or relicensing authority for every game-derived or third-party asset.
+
 ## LevelRange-Turtle
 
 Questie-Octo 1.0.56-1.0.57 uses the user-supplied LevelRange-Turtle 2.2.0 and
@@ -119,11 +143,34 @@ component.
 
 ## Turtle/Tortoise and calendar-derived data
 
+The supplied `tortoise-wow-main` server-source snapshot carries the **GNU Affero
+General Public License version 3 (AGPLv3)** at its repository root. Its exact
+license text is preserved at `LICENSES/Tortoise-AGPL-3.0.txt`.
+
+Questie-Octo uses that source as an offline factual/server-behavior reference as
+documented by generated-data headers and audit notes. This notice records the
+source snapshot's license; it does not make a blanket legal claim about whether
+every extracted quest fact, coordinate, or database value is copyrightable or
+subject to AGPL obligations.
+
 Existing Questie-Octo files explicitly document Turtle/Tortoise server data and
 calendar material used to build or verify offline quest/event data. Those
 existing generated-data headers and architecture notes are preserved. This
 licensing-only packaging pass does not alter, regenerate, remove, or reinterpret
 that gameplay data.
+
+## Project identity, mirrors, and endorsement
+
+The canonical Questie-Octo repository is
+`https://github.com/SandreaSub/Questie-Octo`. Downstream forks and mirrors are
+independent unless the canonical project explicitly states otherwise. A fork
+being mirrored on an OctoWoW, GitHub, Gitea, GitLab, or other service does not
+by itself create an affiliation or endorsement relationship with Questie-Octo.
+See `PROJECT_IDENTITY.md`.
+
+Compatibility with World of Warcraft, Turtle/Octo WoW, ClassicAPI, Questie,
+pfQuest, pfUI, or other projects does not imply endorsement by their respective
+rights holders or maintainers.
 
 ## Preservation rule for future contributors and AI tools
 

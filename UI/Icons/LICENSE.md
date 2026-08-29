@@ -1,33 +1,42 @@
-# Licensing of files in this directory
+# Licensing and provenance of files in this directory
 
-## pfQuest artwork
+This directory contains mixed-source artwork. No single blanket license is
+asserted for every file here. Exact hashes and the current provenance status of
+every `.blp` and `.tga` file are recorded in:
 
-The pfQuest-sourced files in this directory were taken from the authoritative
-pfQuest archive supplied for Questie-Octo. pfQuest's upstream licensing applies.
+- `Docs/ASSET_PROVENANCE.md`
+- `Tools/provenance_assets.tsv`
 
-Notable source-matched files include `pfquest_node.tga` (byte-for-byte copy of
-pfQuest `img/node.tga`) and the existing pfQuest tracking/icon assets.
+## Exact pfQuest matches
 
-## Questie artwork
+The current audit verifies byte-for-byte matches for `pfquest_node.tga` and the
+pfQuest tracking/service icons listed in the asset manifest. The supplied
+pfQuest-classicAPI-octo snapshot carries the MIT license preserved at
+`LICENSES/pfQuest-classicAPI-MIT.txt`.
 
-`repeatable.blp` is a byte-for-byte copy of Questie 6.0.0
-`Icons/repeatable.blp`, supplied as the reference implementation for
-Questie-Octo. Questie's upstream licensing applies.
+## Exact Questie matches
 
-## Other artwork
+The current audit verifies byte-for-byte matches to supplied Questie 5.2.3/6.0.0
+assets for `event.blp`, `glow.blp`, `loot.blp`, `object.blp`, `repeatable.blp`,
+and `slay.blp`. Project history also records additional Questie-derived artwork
+whose exact historical source snapshot is no longer available for hash
+verification.
 
-Files not identified above retain their respective upstream/source licensing.
+Current CurseForge project metadata identifies Questie as GPLv3, including the
+Questie v6.0.0 file page. The supplied 5.2.3/6.0.0 ZIPs themselves contain no
+project-level Questie license file. See
+`LICENSES/Questie-LICENSE-METADATA.txt`. This project does not claim that a
+project-level license necessarily establishes ownership or relicensing rights
+for every individual artwork an upstream project may have distributed.
 
-## PvP artwork
+## Project-supplied conversions
 
-`pvp_available.tga` and `pvp_complete.tga` are conversions of the red PvP quest
-marker references supplied directly for the Questie-Octo project.
+`pvp_available.tga`, `pvp_complete.tga`, and `available_gray.tga` retain the
+project-supplied conversion provenance described in the asset manifest.
 
-## Questie-Octo gray available artwork
+## Unresolved artwork
 
-`available_gray.tga` is a WoW-compatible TGA conversion of the 32x32 gray
-available-quest marker image supplied directly by the Questie-Octo project
-maintainer on 2026-08-17. The conversion preserves the supplied pixels and
-alpha; it is not copied from Questie's `available_gray.blp`.
-
-
+Files for which the available source set establishes neither an exact hash
+match nor a sufficiently specific historical attribution are explicitly marked
+`unresolved-in-current-reference-set` in the manifest. They are preserved
+unchanged and are not silently assigned a license or origin by this audit.
