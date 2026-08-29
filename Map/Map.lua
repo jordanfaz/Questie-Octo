@@ -220,6 +220,17 @@ local function DrawSublevelForRole(role)
   return 0
 end
 
+-- Draw sublevels are enough when several quest entries share one frame, but
+-- separate overlapping Button frames with the same frame level can still be
+-- ordered by creation order on the 1.12 client. Give turn-ins their own frame
+-- band so a completed `?` is always clickable/visible above available `!` pins.
+-- Permanent service/rare markers remain below all quest pins.
+local function FrameLevelBandForRole(role)
+  if IsPermanentRole(role) then return 0 end
+  if role=="turnin" then return 2 end
+  return 1
+end
+
 local function ApplyVisualRole(pin,node)
   local priority=VisualPriority(node)
   if not pin.visualPriority or priority>pin.visualPriority then
@@ -238,11 +249,7 @@ local function ApplyVisualRole(pin,node)
     -- Miscellaneous/rare markers stay below quest pins so an overlapping
     -- quest objective, starter or turn-in remains visible and clickable.
     if pin.SetFrameLevel and WorldMapButton then
-      if IsPermanentRole(node.role) then
-        pin:SetFrameLevel(WorldMapButton:GetFrameLevel()+7)
-      else
-        pin:SetFrameLevel(WorldMapButton:GetFrameLevel()+8)
-      end
+      pin:SetFrameLevel(WorldMapButton:GetFrameLevel()+7+FrameLevelBandForRole(node.role))
     end
     if QuestieOcto.Visuals then QuestieOcto.Visuals:ApplyPin(pin,node,false,1) end
   end
@@ -267,6 +274,10 @@ end
 
 function M:GetDrawSublevelForRole(role)
   return DrawSublevelForRole(role)
+end
+
+function M:GetFrameLevelBandForRole(role)
+  return FrameLevelBandForRole(role)
 end
 
 function M:GetScaleKeyForRole(role)

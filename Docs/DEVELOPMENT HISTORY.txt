@@ -1,3 +1,10 @@
+1.0.84 - COMPLETED QUEST MARKER Z-ORDER
+------------------------------------------------
+- Audited the Grim Reaches overlap report against the accepted 1.0.83 World Map/minimap renderer and Questie 5.2.3/6.0.0 draw-order behavior. Questie-Octo already gave turn-ins higher semantic priority and OVERLAY sublevel 6 versus available sublevel 5, so coincident entries merged into one pin correctly selected the completed `?`.
+- Found the remaining gap for separate Button frames whose icons overlap spatially: all non-permanent quest pins used the same frame level (World Map +8 / minimap +7). On the 1.12 client, separate frames at the same level can still overlap according to creation order, allowing an available `!` to cover part of a completed `?`.
+- Added a shared role frame-level band: permanent service/rare markers remain lowest, ordinary quest/objective/available pins retain their existing level, and turn-in pins render exactly one frame level higher. This applies to both World Map and minimap and makes completed `?` markers deterministically visible/clickable above available `!` markers.
+- Existing draw sublevels, visual role priority, prepared-pin merging, tooltip entries, icon textures/scales, quest visibility settings, map identity, objective data, and runtime database are unchanged. No new event, OnUpdate, timer, polling, scan, cache, or recurring allocation path was added.
+
 1.0.83 - COMPLETED QUEST OBJECTIVE VISIBILITY
 ------------------------------------------------
 - Audited the reported completed War Banners tracker row against the accepted 1.0.82 source. TrackerDriver already respected `trackerHideCompletedObjectives`: when OFF it retained completed objectives, and when ON it filtered them out.

@@ -457,11 +457,7 @@ local function ApplyVisual(pin,node)
     pin.texture:SetDrawLayer("OVERLAY",QuestieOcto.Map:GetDrawSublevelForRole(node.role))
     -- Keep townsfolk/rare markers below quest pins at identical coordinates.
     if pin.SetFrameLevel and Minimap then
-      if IsPermanentRole(node.role) then
-        pin:SetFrameLevel(Minimap:GetFrameLevel()+6)
-      else
-        pin:SetFrameLevel(Minimap:GetFrameLevel()+7)
-      end
+      pin:SetFrameLevel(Minimap:GetFrameLevel()+6+QuestieOcto.Map:GetFrameLevelBandForRole(node.role))
     end
     if QuestieOcto.Visuals then
       QuestieOcto.Visuals:ApplyPin(pin,node,true,pin.lastAlpha or 1)

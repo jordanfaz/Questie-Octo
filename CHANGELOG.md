@@ -1,5 +1,9 @@
 # Questie-Octo Changelog
 
+## 1.0.84
+- Completed quest `?` markers now always render above available quest `!` markers when their icons overlap on the World Map or minimap.
+- Existing quest tooltip grouping, icon sizes, and marker visibility settings are unchanged.
+
 ## 1.0.83
 - Fixed **Hide Completed Objectives** being ignored for fully completed quests in the tracker.
 - With the option OFF, completed objective lines remain visible beneath completed quests; with it ON, they are hidden as expected.
