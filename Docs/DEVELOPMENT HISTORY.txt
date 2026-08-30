@@ -1,3 +1,12 @@
+1.0.85 - ARTISAN SECONDARY-PROFESSION AVAILABILITY
+------------------------------------------------------
+- Audited the level-35 / 225-skill report against the accepted 1.0.84 availability evaluator, current OctoWoW database pages, the supplied Tortoise quest_template source, Questie 6, pfQuest-Octo, and ClassicAPI's direct SkillLine-rank behavior. The availability evaluator already uses the quest's `min` field (not its display `lvl`) and the live SkillLine ID/rank, so no runtime eligibility-code change was needed.
+- Corrected current deployed truth for `To Survive in the Jungle` (42041): current OctoWoW data reports quest level 45 with required level 35. The packaged source snapshot/pfQuest-Octo reference still carried the older minimum 45. The sparse enrichment now overrides only `min=35`; its existing Survival skill ID/value are otherwise unchanged.
+- Removed stale legacy `pre` fields from the direct Artisan master quests Nat Pagle, Angler Extreme (6607), Clamlette Surprise (6610), Triage Horde (6622), and Triage Alliance (6624). Current server quest_template rows have PrevQuestId=0 for all four, while the 6608/6609, 6611/6612, and 6623/6625 quests are optional breadcrumb/travel helpers rather than mandatory prerequisites. Questie 6 independently models the master quests without those predecessor requirements.
+- Included Clamlette Surprise even though it was not part of the original player report because the full secondary-profession audit found the exact same stale prerequisite pattern there.
+- Regenerated the compiled runtime database. Only Data/runtime/quests.lua changed: four stale `pre` fields were removed and quest 42041 minimum level changed 45 -> 35. Quest count, map-candidate data, entity coordinates, objectives, rewards, and all other runtime datasets remain unchanged.
+- No event, OnUpdate, timer, polling, player-skill scan, map scan, cache, or recurring allocation path was added. ClassicAPI's C_SpellBook.GetSkillLineRank continues to provide the current rank directly by SkillLine.dbc ID.
+
 1.0.84 - COMPLETED QUEST MARKER Z-ORDER
 ------------------------------------------------
 - Audited the Grim Reaches overlap report against the accepted 1.0.83 World Map/minimap renderer and Questie 5.2.3/6.0.0 draw-order behavior. Questie-Octo already gave turn-ins higher semantic priority and OVERLAY sublevel 6 versus available sublevel 5, so coincident entries merged into one pin correctly selected the completed `?`.

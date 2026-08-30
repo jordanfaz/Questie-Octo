@@ -1,5 +1,10 @@
 # Questie-Octo Changelog
 
+## 1.0.85
+- Fixed the Artisan secondary-profession master quests being hidden unless their optional city breadcrumb quest had been completed first.
+- **Nat Pagle, Angler Extreme**, **Clamlette Surprise**, and both faction versions of **Triage** now appear directly when their own level and profession requirements are met.
+- Corrected **To Survive in the Jungle** to its current level-35 minimum while keeping its quest level at 45.
+
 ## 1.0.84
 - Completed quest `?` markers now always render above available quest `!` markers when their icons overlap on the World Map or minimap.
 - Existing quest tooltip grouping, icon sizes, and marker visibility settings are unchanged.
