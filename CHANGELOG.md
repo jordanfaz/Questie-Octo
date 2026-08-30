@@ -1,5 +1,19 @@
 # Questie-Octo Changelog
 
+## 1.0.92
+- Shift + Left Click on a quest while typing in chat now inserts a clickable quest link instead of plain quest-name text.
+- Normal Shift + Left Click tracking/untracking is unchanged when the chat box is closed.
+- Clicking Questie-Octo quest links continues to open the existing detailed quest-link tooltip.
+
+## 1.0.91
+- Fixed Quest Log changes such as collapsing/expanding categories being able to publish a mixed active-quest snapshot while Questie-Octo was still scanning the old row layout.
+- This prevents unrelated active quests/objectives, timers, and quest-state markers from briefly disappearing because their native Quest Log indices shifted mid-refresh.
+- Tracker links now re-check the quest's current Quest Log index before opening it, avoiding a neighbouring quest during the same brief reindex window.
+
+## 1.0.90
+- Restored the tracker/objective runtime to the accepted 1.0.85 behavior after the 1.0.87-1.0.89 test fixes did not resolve the rare Quest Log category-collapse case.
+- No experimental scroll anchoring or cross-cache objective merging is retained.
+
 ## 1.0.85
 - Fixed the Artisan secondary-profession master quests being hidden unless their optional city breadcrumb quest had been completed first.
 - **Nat Pagle, Angler Extreme**, **Clamlette Surprise**, and both faction versions of **Triage** now appear directly when their own level and profession requirements are met.

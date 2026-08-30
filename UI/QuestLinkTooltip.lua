@@ -3,10 +3,10 @@
 -- pfQuest-classicAPI historically replaced the tiny native quest-link popup
 -- with a full ItemRefTooltip containing the quest title, status, objective,
 -- description and level requirements. Questie-Octo restores that presentation
--- while deliberately leaving existing quest-log click modifiers alone:
---   * Shift + left-click on Quest Log rows remains TrackerDriver's track toggle.
---   * Shift + right-click / other modifier behavior remains the client's/addon's
---     existing link-to-chat path because modifier clicks are forwarded untouched.
+-- while preserving Questie-Octo's Quest Log interaction contract:
+--   * Shift + left-click on a Quest Log quest tracks/untracks it normally.
+--   * If the chat edit box is open, the same Shift + left-click inserts a
+--     clickable quest hyperlink instead, matching pfQuest's Vanilla behavior.
 --
 -- ItemRefTooltip is intentional: pfUI already skins that native tooltip frame,
 -- while non-pfUI users retain the normal Blizzard ItemRefTooltip appearance.
@@ -82,6 +82,40 @@ local function DifficultyColor(level,questID)
     if r then return r,g,b end
   end
   return 1,1,0
+end
+
+local function ClampByte(value)
+  value=tonumber(value) or 0
+  if value<0 then value=0 elseif value>1 then value=1 end
+  return math.floor(value*255+0.5)
+end
+
+local function DifficultyHex(level,questID)
+  local r,g,b=DifficultyColor(level,questID)
+  return string.format("|cff%02x%02x%02x",ClampByte(r),ClampByte(g),ClampByte(b))
+end
+
+function Q:BuildQuestLink(questID,title,level)
+  questID=tonumber(questID)
+  if not questID or questID<=0 then return nil end
+
+  level=tonumber(level) or 0
+  if not title or title=="" then
+    if QuestieOcto.DatabaseAPI and QuestieOcto.DatabaseAPI:IsReady() then
+      title=QuestieOcto.DatabaseAPI:GetQuestTitle(questID)
+    end
+  end
+  if not title or title=="" then title="Quest "..tostring(questID) end
+
+  return DifficultyHex(level,questID).."|Hquest:"..tostring(questID)..":"..tostring(level).."|h["..tostring(title).."]|h|r"
+end
+
+function Q:InsertQuestLink(questID,title,level)
+  if not ChatFrameEditBox or not ChatFrameEditBox.IsVisible or not ChatFrameEditBox:IsVisible() then return false end
+  local link=self:BuildQuestLink(questID,title,level)
+  if not link then return false end
+  ChatFrameEditBox:Insert(link)
+  return true
 end
 
 local function QuestStatus(questID)
@@ -164,14 +198,13 @@ function Q:ShowQuest(questID,text)
 end
 
 function Q:HandleSetItemRef(link,text,button)
-  -- Do not steal any existing modifier-click behavior. In particular this
-  -- preserves the user's existing Shift+RightClick chat-link path. Tracker
-  -- Shift+LeftClick lives on QuestLogTitleButton_OnClick and is untouched.
+  -- Quest Log Shift+click-to-chat is handled by TrackerDriver before a link
+  -- exists. Once a hyperlink is clicked in chat, keep modifier-click behavior
+  -- available to Blizzard/other addons rather than replacing it here.
   if AnyModifierDown() then return false end
 
   -- Normal left- or right-click opens quest details, matching pfQuest's
-  -- Vanilla behavior. Modifier clicks were already returned above, so the
-  -- existing Shift+RightClick link-to-chat path remains untouched.
+  -- Vanilla behavior. Modifier clicks were already returned above.
   if button and button~="LeftButton" and button~="RightButton" then return false end
 
   if IsQuestLink(link) then

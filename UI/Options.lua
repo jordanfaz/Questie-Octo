@@ -482,7 +482,7 @@ local function CreateTrackerTab()
       trackerMaxWidth={type="range",order=22,name="Width",desc="Set the maximum tracker width.",width="double",min=200,max=500,step=10,get=GetValue,set=SetValue},
       trackerVisibleRows={type="range",order=23,name="Visible Rows",desc="Set the maximum number of visible rows.",width="double",min=6,max=60,step=1,get=GetValue,set=SetValue},
       trackerBackgroundOpacity={type="range",order=24,name="Background Opacity",desc="Adjust tracker background opacity.",width="double",min=0,max=1,step=0.05,get=GetValue,set=SetValue},
-      manual_hint={type="description",order=30,name="Shift + Left Click a quest in the Quest Log to track or untrack it manually.",fontSize="medium"},
+      manual_hint={type="description",order=30,name="Shift + Left Click a quest in the Quest Log to track or untrack it manually. While typing in chat, Shift + Left Click inserts a clickable quest link.",fontSize="medium"},
     },
   }
 end

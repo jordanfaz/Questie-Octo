@@ -913,7 +913,8 @@ function T:ShowQuestMenu(questID)
 end
 
 function T:OpenQuest(questID)
-  local state=QuestieOcto.QuestLog and QuestieOcto.QuestLog.active and QuestieOcto.QuestLog.active[tonumber(questID)]
+  questID=tonumber(questID)
+  local state=QuestieOcto.QuestLog and QuestieOcto.QuestLog.active and QuestieOcto.QuestLog.active[questID]
   if not state then return end
 
   if QuestLogFrame and ShowUIPanel then
@@ -922,8 +923,29 @@ function T:OpenQuest(questID)
     ToggleQuestLog()
   end
 
-  if QuestLog_SetSelection and state.logIndex then
-    QuestLog_SetSelection(state.logIndex)
+  -- Native header collapse/expand reindexes the Quest Log immediately. The
+  -- cached tracker state is refreshed asynchronously, so validate the stored
+  -- slot by quest ID before selecting it. This mirrors the existing timed-
+  -- quest safety above and fails closed rather than opening a neighbouring
+  -- quest during the brief reindex window.
+  local index=tonumber(state.logIndex)
+  if index and questID and QuestieOcto.API then
+    local rawIndexedID=QuestieOcto.API.GetQuestIDForLogIndex and QuestieOcto.API:GetQuestIDForLogIndex(index) or nil
+    if tonumber(rawIndexedID)~=questID then
+      local rawFreshIndex=QuestieOcto.API.GetLogIndexForQuestID and QuestieOcto.API:GetLogIndexForQuestID(questID) or nil
+      local freshIndex=tonumber(rawFreshIndex)
+      local rawFreshID=freshIndex and QuestieOcto.API.GetQuestIDForLogIndex and QuestieOcto.API:GetQuestIDForLogIndex(freshIndex) or nil
+      if freshIndex and tonumber(rawFreshID)==questID then
+        index=freshIndex
+        state.logIndex=freshIndex
+      else
+        index=nil
+      end
+    end
+  end
+
+  if QuestLog_SetSelection and index then
+    QuestLog_SetSelection(index)
   end
   if QuestLog_Update then QuestLog_Update() end
   if QuestLog_UpdateQuestDetails then QuestLog_UpdateQuestDetails() end

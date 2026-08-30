@@ -1,3 +1,11 @@
+1.0.92 - CLICKABLE QUEST LINKS FROM QUEST LOG
+------------------------------------------------
+- Audited the player report against the accepted 1.0.91 Quest Log click hook, Blizzard 1.12 FrameXML, Questie-Octo's existing quest-link receiver, and pfQuest-classicAPI's Vanilla compatibility implementation. Blizzard 1.12 inserts only plain quest-name text when Shift-clicking a Quest Log quest while the chat edit box is visible; pfQuest constructs a `|Hquest:<id>:<level>|h[...]|h` hyperlink instead.
+- Added the missing outgoing half to `UI/QuestLinkTooltip.lua`: Questie-Octo can now build a difficulty-colored quest hyperlink from the live quest ID/title/level and insert it into the active Vanilla chat edit box. The existing incoming `SetItemRef` quest-link handling is unchanged and already understands the same `quest:` link format.
+- Updated TrackerDriver's existing Quest Log Shift+LeftClick pre-hook so chat retains native priority: with the chat edit box visible, Shift+LeftClick inserts the clickable quest link; with chat closed, the existing manual track/untrack toggle remains unchanged. If the hyperlink helper is unexpectedly unavailable, the hook forwards to Blizzard's original handler so the fallback remains plain quest text rather than changing tracking state.
+- Updated the Tracker options hint to document the chat-link gesture. No saved-variable field, database record, map/minimap behavior, tracker state model, quest-log scan, scheduler path, polling loop, timer, OnUpdate, or recurring allocation path was added.
+- Static validation: all 126 Lua files parse successfully with the available Lua 5.4 library. A focused hook regression harness confirmed chat-open Shift+LeftClick inserts `|Hquest:123:40|h[Test Quest]|h`, does not toggle tracking, preserves Quest Log selection/update, chat-closed Shift+LeftClick still toggles tracking, and missing-linker fallback calls Blizzard's original handler. This is static/harness validation, not live Vanilla 1.12 confirmation.
+
 1.0.85 - ARTISAN SECONDARY-PROFESSION AVAILABILITY
 ------------------------------------------------------
 - Audited the level-35 / 225-skill report against the accepted 1.0.84 availability evaluator, current OctoWoW database pages, the supplied Tortoise quest_template source, Questie 6, pfQuest-Octo, and ClassicAPI's direct SkillLine-rank behavior. The availability evaluator already uses the quest's `min` field (not its display `lvl`) and the live SkillLine ID/rank, so no runtime eligibility-code change was needed.
@@ -2256,3 +2264,57 @@ wording, respawn values, drop rates, or thresholds changed.
 - README/options wording now describes generic minimap-button-panel behavior
   instead of compatibility-specific handling. No quest/map/tracker/database
   semantics changed.
+
+1.0.90 - CLEAN TRACKER TEST CONSOLIDATION
+------------------------------------------------------------
+- Rebuilt directly from accepted 1.0.85 after live testing showed the 1.0.87,
+  1.0.88, and 1.0.89 tracker experiments did not resolve the rare category-
+  collapse/Vine Cutter reproduction.
+- Rejected 1.0.87 semantic viewport anchoring: it changes live scroll semantics,
+  adds semantic row-resolution passes on Render(), and provided no demonstrated
+  benefit for the reported failure.
+- Rejected 1.0.88 native/API objective merge: it changes objective source/count/
+  ordering authority and can pair independently-settling native and ClassicAPI
+  rows by position.
+- Rejected 1.0.89 native completion override: although it corrected the Vanilla
+  meaning of a nil/false native finished flag, it retained the same cross-source
+  positional merge and still did not solve the live reproduction.
+- Kept the accepted 1.0.83 Hide Completed Objectives renderer semantics unchanged.
+- Tracker/TrackerFrame.lua and Quest/QuestLog.lua in 1.0.90 are byte-identical
+  to accepted 1.0.85. No polling, timer, scheduler, map, database, or gameplay
+  changes were added.
+- Added Docs/TRACKER_TEST_CORRECTIONS_AUDIT_2026-08-30.md documenting the
+  rejected experiments and the remaining narrow investigation target.
+1.0.91 - QUEST LOG TRANSACTION / STALE-INDEX SAFETY
+------------------------------------------------------------
+- Full-project audit following independent player reports of apparently unrelated
+  Mulgore, Ragefire Chasm, and Durotar quests/objectives disappearing. The named
+  quest records, compiled runtime database, and map candidate index were checked
+  before changing code; no broad missing-quest/database defect was found.
+- Confirmed a systemic race in Quest/QuestLog.lua: Refresh() snapshots the native
+  Quest Log entry count and scans GetQuestLogTitle()-style numeric indices across
+  multiple scheduler frames. Native header collapse/expand and quest add/remove
+  operations can reindex that list while the old scan is still in progress. A
+  second refresh was queued, but the old partial scan could publish first, creating
+  one active snapshot assembled from two different native layouts.
+- Added an unpublished scan generation guard. Any new Quest Log refresh request
+  received while a scan is running invalidates that generation immediately. The
+  next continuation discards its local replacement state and queues a fresh pass;
+  an invalidated scan never publishes QUEST_LOG_CHANGED/active/map state. This is
+  event-driven replacement work only and adds no polling/OnUpdate/background scan.
+- Synthetic regression using the real QuestLog.lua reproduces the old failure: an
+  expanded-layout first batch followed by a header collapse publishes an incomplete
+  active set in 1.0.90. With 1.0.91, the stale continuation is aborted, the previous
+  authoritative state remains published, and the replacement scan recovers the full
+  active set while preserving collapsed-header presentation state.
+- Audited every other runtime consumer of cached Quest Log indices. Timed quests
+  already validate/re-resolve their live index by quest ID. Tracker Open/Show in
+  Quest Log now applies the same fail-closed validation before selecting a row.
+- Kept 1.0.83 Hide Completed Objectives semantics unchanged. The rejected 1.0.87
+  scroll-anchor, 1.0.88 cross-cache merge, and 1.0.89 completion override remain
+  absent. No individual quest-data override was added for the player reports.
+- Rite of Vision (772) remains a separately documented objective-free/scripted
+  semantic edge case; no unsafe global IR rule change was made. A Dryad's Gratitude
+  (40587) remains correctly marked timed in the compiled data; no speculative map
+  objective was fabricated for its courier item.
+

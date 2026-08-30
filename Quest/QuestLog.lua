@@ -5,6 +5,7 @@ QL.started=false
 QL.running=false
 QL.pending=false
 QL.fastPending=false
+QL.scanGeneration=0
 QL.acceptedQuestID=nil
 QL.acceptedHints={}
 QL.acceptPollGeneration=0
@@ -16,7 +17,7 @@ QL.mapState=nil
 QL.lastHeaderStates={}
 QL.collapsedQuestIDs={}
 QL.headerHooksInstalled=false
-QL.stats={ entries=0, quests=0, resolved=0, refreshes=0, acceptedFastRefreshes=0, acceptedEvents=0, acceptedResolved=0, acceptedFromIndex=0, acceptedHintsUsed=0, acceptedPrimes=0, acceptedPolls=0, lastAcceptedQuestID=0, removedEvents=0, removedResolved=0, removedFromIndex=0, lastRemovedQuestID=0, completeRaw=0, completeObjectives=0, completeNoObjectives=0, failed=0, mapChanges=0, progressOnlyChanges=0 }
+QL.stats={ entries=0, quests=0, resolved=0, refreshes=0, acceptedFastRefreshes=0, acceptedEvents=0, acceptedResolved=0, acceptedFromIndex=0, acceptedHintsUsed=0, acceptedPrimes=0, acceptedPolls=0, lastAcceptedQuestID=0, removedEvents=0, removedResolved=0, removedFromIndex=0, lastRemovedQuestID=0, completeRaw=0, completeObjectives=0, completeNoObjectives=0, failed=0, mapChanges=0, progressOnlyChanges=0, scanInvalidations=0, scanAborts=0 }
 
 -- Native Vanilla/Turtle quest-log headers are presentation state. Collapsing a
 -- header removes its child quest rows from GetQuestLogTitle(), even though those
@@ -651,6 +652,19 @@ end
 
 function QL:Schedule(delay,fastRefresh)
   if not self.started then return end
+
+  -- Refresh() reads the native Quest Log incrementally across scheduler frames.
+  -- GetQuestLogTitle() is an index-based view whose row numbers can change as
+  -- soon as a header is collapsed/expanded or a quest is added/removed. If a
+  -- new refresh request arrives while a scan is in progress, the source may no
+  -- longer have the layout that scan started with. Invalidate that unpublished
+  -- generation immediately; its next continuation will discard the partial
+  -- replacement instead of publishing a mixed old/new Quest Log snapshot.
+  if self.running then
+    self.scanGeneration=(self.scanGeneration or 0)+1
+    self.stats.scanInvalidations=(self.stats.scanInvalidations or 0)+1
+  end
+
   self.pending=true
   if fastRefresh then self.fastPending=true end
 
@@ -672,6 +686,7 @@ function QL:Refresh(fastRefresh)
   end
 
   self.running=true
+  local scanGeneration=self.scanGeneration or 0
 
   local entries,quests=GetNumQuestLogEntries()
   entries=entries or 0
@@ -696,7 +711,22 @@ function QL:Refresh(fastRefresh)
   local currentHeader="Other"
   local nativeResolved={}
 
+  local function AbortIfStale()
+    if scanGeneration==(QL.scanGeneration or 0) then return false end
+
+    -- Nothing in nextActive/snapshotParts/nextMapState has been published yet.
+    -- Drop the obsolete transaction and ensure a fresh pass is queued against
+    -- the newest native layout. This is bounded replacement work, not polling.
+    local fast=QL.fastPending and true or false
+    QL.running=false
+    QL.stats.scanAborts=(QL.stats.scanAborts or 0)+1
+    QL:Schedule(0.01,fast)
+    return true
+  end
+
   local function step()
+    if AbortIfStale() then return end
+
     local count=0
     local batch=fastRefresh and 32 or 4
 
@@ -853,6 +883,11 @@ function QL:Refresh(fastRefresh)
       QuestieOcto.Scheduler:Enqueue(step,"questlog-scan")
       return
     end
+
+    -- The final batch can only be followed by publication. Re-check the scan
+    -- generation at that transaction boundary as a defensive guarantee that
+    -- an obsolete source layout is never committed.
+    if AbortIfStale() then return end
 
     -- Collapsed native headers remove their child quest rows from the visible
     -- quest-log enumeration. Do not interpret that presentation change as an

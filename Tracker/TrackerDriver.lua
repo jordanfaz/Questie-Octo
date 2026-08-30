@@ -212,7 +212,7 @@ local function ResolveQuestLogButton(button)
   local info=QuestieOcto.API:GetQuestLogInfo(index)
   if not info or info.isHeader then return nil,nil end
   local questID=info.questID or QuestieOcto.API:GetQuestIDForLogIndex(index)
-  return tonumber(questID),index
+  return tonumber(questID),index,info
 end
 
 function D:InstallQuestLogShiftClick()
@@ -239,8 +239,29 @@ function D:InstallQuestLogShiftClick()
     end
 
     if actualButton and not actualButton.isHeader and click=="LeftButton" and IsShiftKeyDown and IsShiftKeyDown() then
-      local questID,index=ResolveQuestLogButton(actualButton)
+      local questID,index,info=ResolveQuestLogButton(actualButton)
       if questID then
+        -- Vanilla inserts plain quest text when Shift-clicking while typing in
+        -- chat. pfQuest upgrades that path to a real quest hyperlink. Do the
+        -- same here before the tracker toggle so chat-linking and manual
+        -- tracking remain mutually exclusive, just like the native contract.
+        if ChatFrameEditBox and ChatFrameEditBox.IsVisible and ChatFrameEditBox:IsVisible() then
+          local linker=QuestieOcto.QuestLinkTooltip
+          local title=(info and info.title) or (actualButton.GetText and actualButton:GetText()) or nil
+          local level=info and info.level or nil
+          if linker and linker.InsertQuestLink and linker:InsertQuestLink(questID,title,level) then
+            if QuestLog_SetSelection and index then QuestLog_SetSelection(index) end
+            if QuestLog_Update then QuestLog_Update() end
+            return
+          end
+
+          -- If the hyperlink helper is unexpectedly unavailable, preserve
+          -- Blizzard's normal chat behavior (plain quest text) rather than
+          -- turning a chat-link gesture into a tracker toggle.
+          if modernCall then return original(firstArg,secondArg) end
+          return original(firstArg)
+        end
+
         D.stats.shiftClicks=D.stats.shiftClicks+1
         D:Toggle(questID)
         if QuestLog_SetSelection and index then QuestLog_SetSelection(index) end
