@@ -77,8 +77,11 @@ M.syncing=false
 M.resync=false
 M.prune=false
 M.frames={}
+M.framePool={}
 M.activeFrames={}
 M.buildActiveFrames=nil
+M.trackerHoverQuestID=nil
+M.trackerHoverFadeAlpha=0.30
 M.renderedPreparedPlan=nil
 M.syncPreparedPlan=nil
 M.renderedNodeRevision=0
@@ -251,7 +254,7 @@ local function ApplyVisualRole(pin,node)
     if pin.SetFrameLevel and WorldMapButton then
       pin:SetFrameLevel(WorldMapButton:GetFrameLevel()+7+FrameLevelBandForRole(node.role))
     end
-    if QuestieOcto.Visuals then QuestieOcto.Visuals:ApplyPin(pin,node,false,1) end
+    if QuestieOcto.Visuals then QuestieOcto.Visuals:ApplyPin(pin,node,false,pin.trackerHoverAlpha or 1) end
   end
 end
 
@@ -323,6 +326,73 @@ local function IsExactRole(role)
   return role=="available" or role=="turnin" or IsPermanentRole(role)
 end
 
+local function IsTrackerHoverObjectiveRole(role)
+  return role=="objectiveCreature" or role=="objectiveObject"
+      or role=="objectiveItemSource" or role=="objectiveArea"
+end
+
+local function TrackerHoverAlphaForPin(pin,questID)
+  questID=tonumber(questID)
+  if not pin or not questID then return 1 end
+
+  -- Item-start areas and any pin containing a non-objective semantic entry are
+  -- protected: pickup/turn-in/service/special markers must never be dimmed just
+  -- because an active objective happens to share their coordinate.
+  if pin.itemStartArea then return 1 end
+
+  local hasObjective=false
+  local hasProtected=false
+  local containsHovered=false
+  for _,entry in pairs(pin.entries or {}) do
+    local node=entry and entry.node
+    if node then
+      if IsTrackerHoverObjectiveRole(node.role) then
+        hasObjective=true
+        if tonumber(node.questID)==questID then containsHovered=true end
+      else
+        hasProtected=true
+      end
+    end
+  end
+
+  -- A clustered/shared objective pin containing the hovered quest remains fully
+  -- visible. Other objective-only pins fade, while any non-objective semantic
+  -- marker remains untouched.
+  if containsHovered or hasProtected or not hasObjective then return 1 end
+  return M.trackerHoverFadeAlpha or 0.30
+end
+
+function M:ApplyTrackerHoverToPin(pin)
+  if not pin then return end
+  local alpha=TrackerHoverAlphaForPin(pin,self.trackerHoverQuestID)
+  if pin.trackerHoverAlpha==alpha then return end
+  pin.trackerHoverAlpha=alpha
+  if QuestieOcto.Visuals then QuestieOcto.Visuals:SetAlpha(pin,alpha) end
+end
+
+function M:RefreshTrackerHoverFocus()
+  local seen={}
+  for _,pin in pairs(self.activeFrames or {}) do
+    if pin and not seen[pin] then
+      seen[pin]=true
+      self:ApplyTrackerHoverToPin(pin)
+    end
+  end
+  for _,pin in pairs(self.buildActiveFrames or {}) do
+    if pin and not seen[pin] then
+      seen[pin]=true
+      self:ApplyTrackerHoverToPin(pin)
+    end
+  end
+end
+
+function M:SetTrackerHoverQuest(questID)
+  questID=tonumber(questID)
+  if self.trackerHoverQuestID==questID then return end
+  self.trackerHoverQuestID=questID
+  self:RefreshTrackerHoverFocus()
+end
+
 local function EntryKey(node)
   return tostring(node.questID)..":"..tostring(node.role)..":"..
     tostring(node.sourceKind)..":"..tostring(node.sourceID)..":"..tostring(node.itemID or 0)
@@ -358,9 +428,33 @@ local function UpdatePosition(pin,x,y,offsetX,offsetY)
   )
 end
 
+local function IsGlobalWorldOverview()
+  -- The current Turtle/Octo FrameXML can transiently keep the previous
+  -- continent index while GetMapInfo() has already switched to the two-
+  -- continent World texture. It also treats continent IDs above
+  -- CONTINENTS_LENGTH as the global overview. Texture identity is therefore
+  -- the primary signal; the client sentinel is a second fail-closed guard.
+  local textureName=QuestieOcto.API and QuestieOcto.API.GetDisplayedMapTextureName
+    and QuestieOcto.API:GetDisplayedMapTextureName() or nil
+  if textureName=="World" then return true end
+
+  local cid=GetCurrentMapContinent and tonumber(GetCurrentMapContinent()) or nil
+  local maxContinents=tonumber(CONTINENTS_LENGTH)
+  if cid and maxContinents and cid>maxContinents then return true end
+
+  -- Native WorldMapFrame falls back to the World texture when GetMapInfo() is
+  -- temporarily unavailable. Only fail closed on an empty identity here; do
+  -- not reject cid<=0 by itself because custom instance/detail maps can be
+  -- identified safely through their texture.
+  if not textureName and (not cid or cid<=0) then return true end
+  return false
+end
+
 local function DisplayedMapID()
   local cid=GetCurrentMapContinent and GetCurrentMapContinent() or 0
   local zid=GetCurrentMapZone and GetCurrentMapZone() or 0
+
+  if IsGlobalWorldOverview() then return nil end
 
   -- ClassicAPI exposes WorldMapArea.dbc as texture-dir -> AreaTable ID. This is
   -- the authoritative way to distinguish custom instances/wings that share the
@@ -394,6 +488,7 @@ local function DisplayedMapID()
 end
 
 local function DisplayedContinentMapID()
+  if IsGlobalWorldOverview() then return nil end
   local cid=GetCurrentMapContinent and GetCurrentMapContinent() or 0
   local zid=GetCurrentMapZone and GetCurrentMapZone() or 0
   if not cid or cid<=0 or (zid and zid>0) then return nil end
@@ -876,12 +971,51 @@ local function AttachWorldMapPinInput(pin)
   pin:SetScript("OnClick",function() OpenContinentZoneForPin(this) end)
 end
 
-function M:GetOrCreate(key,node,x,y,clusterCount,generation,kind)
-  if not IsRoleEnabled(node.role) or not IsPvPQuestNodeEnabled(node) then return nil end
+local function ResetPooledWorldMapPin(pin)
+  if not pin then return end
+  if pin:IsShown() then pin:Hide() end
+  pin:ClearAllPoints()
+  pin.seenGeneration=nil
+  pin.entryGeneration=nil
+  pin.entries=nil
+  pin.itemStartArea=nil
+  pin.displayName=nil
+  pin.clusterCount=nil
+  pin.visualPriority=nil
+  pin.role=nil
+  pin.questID=nil
+  pin.sourceID=nil
+  pin.event=nil
+  pin.pvp=nil
+  pin.repeatable=nil
+  pin.fullNode=nil
+  pin.fullNodeNode=nil
+  pin.iconScaleKey=nil
+  pin.sourceKind=nil
+  pin.continentZoneMapID=nil
+  pin.x=nil
+  pin.y=nil
+  pin.offsetX=nil
+  pin.offsetY=nil
+  pin.trackerHoverAlpha=nil
+  if QuestieOcto.Visuals then QuestieOcto.Visuals:ClearPin(pin,1) end
+end
 
+local function AcquireWorldMapPin(self,key)
   local pin=self.frames[key]
+  if pin then
+    self.stats.reused=self.stats.reused+1
+    return pin
+  end
 
-  if not pin then
+  local pool=self.framePool or {}
+  self.framePool=pool
+  local count=table.getn(pool)
+  if count>0 then
+    pin=pool[count]
+    pool[count]=nil
+    self.stats.reused=self.stats.reused+1
+  else
     pin=CreateFrame("Button",nil,WorldMapButton)
     pin:SetWidth(16)
     pin:SetHeight(16)
@@ -890,14 +1024,42 @@ function M:GetOrCreate(key,node,x,y,clusterCount,generation,kind)
     local tex=pin:CreateTexture(nil,"OVERLAY")
     tex:SetAllPoints(pin)
     pin.texture=tex
-
     AttachWorldMapPinInput(pin)
-
-    self.frames[key]=pin
     self.stats.created=self.stats.created+1
-  else
-    self.stats.reused=self.stats.reused+1
   end
+
+  pin.frameKey=key
+  self.frames[key]=pin
+  return pin
+end
+
+function M:RecycleUnusedFrames(generation)
+  for key,pin in pairs(self.frames or {}) do
+    if pin and pin.seenGeneration~=generation then
+      self.frames[key]=nil
+      pin.frameKey=nil
+      ResetPooledWorldMapPin(pin)
+      table.insert(self.framePool,pin)
+    end
+  end
+end
+
+function M:RecycleAllFrames()
+  local old=self.frames or {}
+  self.frames={}
+  for _,pin in pairs(old) do
+    if pin then
+      pin.frameKey=nil
+      ResetPooledWorldMapPin(pin)
+      table.insert(self.framePool,pin)
+    end
+  end
+end
+
+function M:GetOrCreate(key,node,x,y,clusterCount,generation,kind)
+  if not IsRoleEnabled(node.role) or not IsPvPQuestNodeEnabled(node) then return nil end
+
+  local pin=AcquireWorldMapPin(self,key)
 
   pin.itemStartArea=nil
   if pin.seenGeneration~=generation then
@@ -935,10 +1097,11 @@ function M:GetOrCreate(key,node,x,y,clusterCount,generation,kind)
       pin.fullNodeNode=node
     end
     if QuestieOcto.Visuals and QuestieOcto.Visuals.ApplyFullNode then
-      QuestieOcto.Visuals:ApplyFullNode(pin,pin.fullNodeNode,false,1)
+      QuestieOcto.Visuals:ApplyFullNode(pin,pin.fullNodeNode,false,pin.trackerHoverAlpha or 1)
     end
   end
   self:ResizePin(pin)
+  self:ApplyTrackerHoverToPin(pin)
 
   if not pin:IsShown() then pin:Show() end
 
@@ -973,9 +1136,10 @@ local function RefreshPinVisual(pin)
   end
   pin.fullNodeNode=fullNode
   if fullNode and QuestieOcto.Visuals and QuestieOcto.Visuals.ApplyFullNode then
-    QuestieOcto.Visuals:ApplyFullNode(pin,fullNode,false,1)
+    QuestieOcto.Visuals:ApplyFullNode(pin,fullNode,false,pin.trackerHoverAlpha or 1)
   end
   M:ResizePin(pin)
+  M:ApplyTrackerHoverToPin(pin)
 end
 
 function M:RemoveQuest(questID)
@@ -1023,12 +1187,27 @@ function M:RemoveQuest(questID)
 end
 
 function M:HideAll()
-  for _,pin in pairs(self.activeFrames or {}) do
-    if pin:IsShown() then
-      pin:Hide()
-      self.stats.hidden=self.stats.hidden+1
+  -- A map change can interrupt an asynchronous zone/continent render after
+  -- some new pins have already been shown but before Finish() promotes them to
+  -- activeFrames. Hide both the last completed set and that unpublished build
+  -- set so invalidating a generation can never strand visible pins on the next
+  -- map texture. The same frame can exist in both lists when it is being reused,
+  -- so de-duplicate before counting/hiding it.
+  local seen={}
+  local function hideList(list)
+    for _,pin in pairs(list or {}) do
+      if pin and not seen[pin] then
+        seen[pin]=true
+        if pin:IsShown() then
+          pin:Hide()
+          M.stats.hidden=M.stats.hidden+1
+        end
+      end
     end
   end
+
+  hideList(self.activeFrames)
+  hideList(self.buildActiveFrames)
   self.activeFrames={}
   self.buildActiveFrames=nil
   self.stats.active=0
@@ -1099,6 +1278,9 @@ function M:SetMap(mapID,specialContext)
   self.continentPhysicalRegistry=nil
   self.continentItemAreaRegistry=nil
   self:HideAll()
+  -- Frames are generic presentation objects. Recycle the previous map context
+  -- instead of retaining one keyed frame forever for every zone ever browsed.
+  self:RecycleAllFrames()
 end
 
 function M:RenderItemStartArea(area,generation,continentZoneMapID)
@@ -1111,25 +1293,7 @@ function M:RenderItemStartArea(area,generation,continentZoneMapID)
   local itemRepeatable=itemQuest and itemQuest.presentationRepeatable or false
 
   local key="itemarea:"..tostring(area.key)
-  local pin=self.frames[key]
-
-  if not pin then
-    pin=CreateFrame("Button",nil,WorldMapButton)
-    pin:SetWidth(16)
-    pin:SetHeight(16)
-    pin:SetFrameLevel(WorldMapButton:GetFrameLevel()+8)
-
-    local tex=pin:CreateTexture(nil,"OVERLAY")
-    tex:SetAllPoints(pin)
-    pin.texture=tex
-
-    AttachWorldMapPinInput(pin)
-
-    self.frames[key]=pin
-    self.stats.created=self.stats.created+1
-  else
-    self.stats.reused=self.stats.reused+1
-  end
+  local pin=AcquireWorldMapPin(self,key)
 
   if pin.seenGeneration~=generation then
     pin.seenGeneration=generation
@@ -1147,6 +1311,7 @@ function M:RenderItemStartArea(area,generation,continentZoneMapID)
   pin.iconScaleKey=nil
   pin.sourceKind="area"
   pin.displayName=area.displayName
+  pin.trackerHoverAlpha=1
   pin.clusterCount=area.n
   pin.texture:SetTexture(TextureForNode({role="itemStart",questID=area.questID,event=pin.event,pvp=pin.pvp,repeatable=pin.repeatable}))
   pin.texture:SetDrawLayer("OVERLAY",5)
@@ -1242,9 +1407,14 @@ function M:Finish(generation,doPrune)
     end
   end
 
+  -- Keep only keys used by this authoritative render. Hidden obsolete pins are
+  -- returned to a generic pool, so long sessions do not retain every historic
+  -- zone/continent pin and its old node references.
+  self:RecycleUnusedFrames(generation)
   self.activeFrames=nextActive
   self.buildActiveFrames=nil
   ResetVisibleOffsets(generation,self.activeFrames)
+  self:RefreshTrackerHoverFocus()
 
   local active=0
   local visibleAvailable=0
@@ -1982,7 +2152,7 @@ function M:RequestSync(doPrune)
   end,"map-sync")
 end
 
-function M:PatchContinentQuests(changedQuests)
+function M:PatchContinentQuests(mapSet,changedQuests)
   if not WorldMapFrame or not WorldMapFrame:IsVisible() then return false end
   local continentMapID=DisplayedContinentMapID()
   if continentMapID==nil or not QuestieOcto.ContinentProjection then return false end
@@ -2051,17 +2221,36 @@ function M:PatchContinentQuests(changedQuests)
   ClearChangedContinentItemAreas(self.continentItemAreaRegistry,changed)
 
   local mapIDs=QuestieOcto.ContinentProjection:GetZoneMapIDs(continentMapID)
-  for _,mapID in ipairs(mapIDs or {}) do
+  local continentMaps={}
+  for _,mapID in ipairs(mapIDs or {}) do continentMaps[tonumber(mapID)]=true end
+
+  -- NODES_CHANGED already carries the union of the changed quests' old and new
+  -- map memberships. Restrict incremental continent work to that set rather
+  -- than walking every zone on the displayed continent for one local change.
+  local affected={}
+  if mapSet and next(mapSet) then
+    for rawMapID in pairs(mapSet) do
+      local mapID=tonumber(rawMapID)
+      if mapID and continentMaps[mapID] then table.insert(affected,mapID) end
+    end
+    table.sort(affected)
+  else
+    for _,mapID in ipairs(mapIDs or {}) do table.insert(affected,mapID) end
+  end
+
+  for _,mapID in ipairs(affected) do
     local rareGroups={}
     local mapNodes=QuestieOcto.Nodes:GetMapNodes(mapID) or {}
+    local changedNodes={}
     for _,node in pairs(mapNodes) do
       if changed[tonumber(node.questID)] then
+        table.insert(changedNodes,node)
         if not AddContinentRareItemStart(rareGroups,node,mapID) then
           self:RenderContinentNode(node,mapID,self.generation,self.continentPhysicalRegistry)
         end
       end
     end
-    RenderContinentItemStartAreas(mapNodes,mapID,self.generation,self.continentItemAreaRegistry,changed)
+    RenderContinentItemStartAreas(changedNodes,mapID,self.generation,self.continentItemAreaRegistry,changed)
     RenderContinentRareItemStarts(rareGroups,mapID,self.generation,self.continentItemAreaRegistry)
   end
 
@@ -2092,6 +2281,7 @@ function M:PatchContinentQuests(changedQuests)
   end
   self.activeFrames=active
   ResetVisibleOffsets(self.generation,self.activeFrames)
+  self:RefreshTrackerHoverFocus()
 
   local visibleAvailable,visibleItemStart,visibleObjective,visibleTurnin=0,0,0,0
   for _,pin in pairs(self.activeFrames) do
@@ -2152,7 +2342,7 @@ function M:OnNodesChanged(mapSet,changedQuests)
   -- changed quest relationships directly instead of starting a full re-render.
   if DisplayedMapID() then return end
   if DisplayedContinentMapID()~=nil then
-    if not self:PatchContinentQuests(changedQuests) then self:RequestSync(true) end
+    if not self:PatchContinentQuests(mapSet,changedQuests) then self:RequestSync(true) end
   end
 end
 

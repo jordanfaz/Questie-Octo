@@ -1,5 +1,41 @@
 # Questie-Octo Changelog
 
+## 1.02
+- Hovering an active quest in the tracker now focuses that quest's active objective markers on both the World Map and minimap.
+- Other active quests' objective markers fade temporarily while hovered, then return immediately when the cursor leaves the quest.
+- Available/completed quests, item-start markers, special quests, Flight Masters, rares, and service markers are never dimmed; shared clustered pins containing the hovered quest stay fully visible.
+- The focus effect is presentation-only and uses existing visible pins, so it adds no quest/node rebuild, map scan, polling loop, or navigation delay.
+
+## 1.01
+- Fixed a rare map-cleanup error that could occur when quest state changed after the map cache was already updated.
+- Reduced unnecessary background work when turning in quests and when reputation, profession, or Hardcore eligibility changes.
+- Improved long-session World Map memory behavior by reusing map pins instead of retaining old zone pins and their quest data.
+- Reduced map, continent, node, and tooltip refresh work so local quest changes stay local while keeping Questie-Octo's current fast in-game response.
+
+## 1.0.99
+- Improved quest accept, abandon, and turn-in map cleanup so removing one quest updates only the maps that quest actually uses instead of walking every prepared map.
+- Duplicate removal events for an already-cleared quest no longer trigger another prepared-map revision pass.
+
+## 1.0.98
+- Fixed a large FPS hitch when entering starter-less maps such as Warsong Gulch by no longer rescanning all 6,701 quests when the compiled map index already proves there are no available-quest starters there.
+- Active quest objectives remain supported on those maps; only the unnecessary available-quest fallback scan is skipped.
+- Keeps the validated 1.0.96 Objective Color Vision accessibility modes unchanged.
+
+## 1.0.96
+- Added **Other → Accessibility → Objective Color Vision** with Default, Red-deficient, Green-deficient, Blue-deficient, and High Contrast modes.
+- Accessibility modes recolor active quest objectives consistently across Full Nodes, Clustered objective colors, and enabled map/minimap glow without changing available, completed, special, rare, or service markers.
+- Default mode preserves the validated 1.0.95 quest colors exactly, and changing modes refreshes visible map/minimap pins immediately without rebuilding quest nodes.
+
+## 1.0.95
+- Improved per-quest objective colors so dense quest areas use a much wider, easier-to-distinguish palette inspired by pfQuest.
+- Full Nodes now use the wider quest color directly instead of muting it toward similar dark/pastel shades.
+- Clustered Map/Minimap icon glow now follows the same stable per-quest color, so every objective from one quest shares one visual identity.
+
+## 1.0.94
+- Fixed World Map pins being stranded on the two-continent World overview when zooming out faster than an asynchronous continent render could finish.
+- The global World texture is now recognized even during the client's brief stale-continent transition, so it can never be mistaken for Kalimdor or map ID 0.
+- Abandoning a map render now hides both the last completed pin set and any pins already drawn by the unfinished render.
+
 ## 1.0.92
 - Shift + Left Click on a quest while typing in chat now inserts a clickable quest link instead of plain quest-name text.
 - Normal Shift + Left Click tracking/untracking is unchanged when the chat box is closed.
