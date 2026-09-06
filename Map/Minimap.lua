@@ -4,6 +4,7 @@ local MM = QuestieOcto.Minimap
 MM.enabled=true
 MM.mapID=nil
 MM.karazhanContext=nil
+MM.specialMapContext=nil
 MM.plan=nil
 MM.planRevision=nil
 MM.frames={}
@@ -33,6 +34,16 @@ MM.stats={
 
 local function Settings()
   return QuestieOcto.MinimapSettings
+end
+
+local function SharedMapContextModule(mapID)
+  local sharedInstances=QuestieOcto.SharedInstanceContext
+  if sharedInstances and sharedInstances:IsSharedArea(mapID) then return sharedInstances end
+  local karazhan=QuestieOcto.KarazhanContext
+  if karazhan and karazhan:IsSharedArea(mapID) then return karazhan end
+  local gnomeregan=QuestieOcto.GnomereganContext
+  if gnomeregan and gnomeregan:IsSharedArea(mapID) then return gnomeregan end
+  return nil
 end
 
 local function ClearTable(tbl)
@@ -368,15 +379,15 @@ local function WorldMapBrowsingAwayFromPlayer(mapID)
   if not displayed then return true end
   if tonumber(displayed)~=tonumber(mapID) then return true end
 
-  -- Lower and Upper Karazhan first floor share numeric AreaTable ID 3457. If
-  -- the player browses the opposite texture, GetPlayerMapPosition() belongs to
-  -- the browsed context even though the numeric ID still matches. Keep the last
-  -- reliable physical position just as we do when browsing another zone.
-  local karazhan=QuestieOcto.KarazhanContext
-  if karazhan and karazhan:IsSharedArea(mapID) then
+  -- Some distinct maps share one numeric AreaTable ID. If the player browses
+  -- the sibling texture, GetPlayerMapPosition() belongs to the browsed context
+  -- even though the numeric ID still matches. Keep the last reliable physical
+  -- position just as we do when browsing another zone.
+  local contextModule=SharedMapContextModule(mapID)
+  if contextModule then
     local displayedContext=QuestieOcto.Map.GetDisplayedSpecialMapContext
       and QuestieOcto.Map:GetDisplayedSpecialMapContext() or nil
-    return displayedContext~=MM.karazhanContext
+    return displayedContext~=MM.specialMapContext
   end
 
   return false
@@ -609,12 +620,13 @@ end
 -- zone-wide representative marker without changing the underlying source data.
 -- Inside dungeons/raids, only those ultra-rare representative markers are
 -- hidden; meaningful >=1.00% item starters remain visible.
-local function MinimapNodeVisible(node,allowItemStart)
+local function MinimapNodeVisible(node,allowItemStart,x,y,preparedMapContext)
   if not node or not IsRoleEnabled(node.role) or not PvPNodeVisible(node) then return false end
 
-  local karazhan=QuestieOcto.KarazhanContext
-  if karazhan and karazhan:IsSharedArea(MM.mapID)
-     and not karazhan:NodeAllowed(node,MM.karazhanContext) then
+  local contextModule=SharedMapContextModule(MM.mapID)
+  if preparedMapContext then
+    if preparedMapContext~=MM.specialMapContext then return false end
+  elseif contextModule and not contextModule:NodeAllowed(node,MM.specialMapContext,x,y) then
     return false
   end
 
@@ -633,9 +645,10 @@ local function ItemAreaVisible(area,allowItemStart)
   if not allowItemStart or not area or not IsRoleEnabled("itemStart") then return false end
   if MM.inDungeonOrRaid and area.zoneWideRare then return false end
 
-  local karazhan=QuestieOcto.KarazhanContext
-  if karazhan and karazhan:IsSharedArea(MM.mapID)
-     and not karazhan:ItemAreaAllowed(area,MM.karazhanContext) then
+  local contextModule=SharedMapContextModule(MM.mapID)
+  if area.preparedMapContext then
+    if area.preparedMapContext~=MM.specialMapContext then return false end
+  elseif contextModule and not contextModule:ItemAreaAllowed(area,MM.specialMapContext) then
     return false
   end
 
@@ -657,21 +670,27 @@ end
 local function DescriptorHasVisibleEntry(desc,revision,allowItemStart)
   if not desc then return false end
   local visibilityRevision=(tonumber(revision) or 0)*2+(allowItemStart and 1 or 0)
-  if desc.minimapVisibilityRevision==visibilityRevision then return desc.minimapVisible and true or false end
+  local visibilityContext=tostring(MM.specialMapContext or "")
+  if desc.minimapVisibilityRevision==visibilityRevision
+     and desc.minimapVisibilityContext==visibilityContext then
+    return desc.minimapVisible and true or false
+  end
 
+  local x,y=DescriptorCoordinates(desc)
   local visible=false
   if desc.type=="itemStartArea" then
     visible=ItemAreaVisible(desc.area,allowItemStart)
   elseif desc.type=="nodeSlot" then
     for _,entry in pairs(desc.entries or {}) do
       local node=entry.node
-      if MinimapNodeVisible(node,allowItemStart) then visible=true; break end
+      if MinimapNodeVisible(node,allowItemStart,x,y,desc.preparedMapContext) then visible=true; break end
     end
   elseif desc.type=="node" and desc.node then
-    visible=MinimapNodeVisible(desc.node,allowItemStart)
+    visible=MinimapNodeVisible(desc.node,allowItemStart,x,y,desc.preparedMapContext)
   end
 
   desc.minimapVisibilityRevision=visibilityRevision
+  desc.minimapVisibilityContext=visibilityContext
   desc.minimapVisible=visible and true or false
   return visible
 end
@@ -720,7 +739,7 @@ local function BindDescriptor(pin,desc,revision,allowItemStart)
   local fullNode=nil
   for _,entry in pairs(entries or {}) do
     local node=entry.node
-    if MinimapNodeVisible(node,allowItemStart) then
+    if MinimapNodeVisible(node,allowItemStart,x,y,desc.preparedMapContext) then
       visible=true
       pin.clusterCount=math.max(pin.clusterCount or 1,entry.clusterCount or 1)
       AddEntry(pin,node)
@@ -788,32 +807,40 @@ function MM:HideAll()
   self.stats.candidateFrames=0
 end
 
-function MM:RefreshPlan(mapID)
+local function PlanHasMinimapWork(plan,itemStartPlan)
+  return table.getn(plan or {})>0 or table.getn(itemStartPlan or {})>0
+end
+
+function MM:RefreshPlan(mapID,settleReason)
   mapID=tonumber(mapID) or CurrentMapID()
   if not mapID then
     self.mapID=nil
     self.karazhanContext=nil
+    self.specialMapContext=nil
     self.plan=nil
     self.itemStartPlan=nil
     self.planRevision=nil
     self.mapWidth=nil
     self.mapHeight=nil
+    self.hasPositionWork=false
+    self.pendingContextSettleReason=nil
     self:HideAll()
     return
   end
 
-  local karazhan=QuestieOcto.KarazhanContext
-  local newKarazhanContext=nil
-  if karazhan and karazhan:IsSharedArea(mapID) then
-    newKarazhanContext=karazhan:GetPhysicalContext(mapID)
-  end
+  local contextModule=SharedMapContextModule(mapID)
+  local newSpecialMapContext=nil
+  if contextModule then newSpecialMapContext=contextModule:GetPhysicalContext(mapID) end
 
   local mapChanged=tonumber(self.mapID)~=mapID
-  local contextChanged=self.karazhanContext~=newKarazhanContext
+  local contextChanged=self.specialMapContext~=newSpecialMapContext
   if mapChanged or contextChanged then
     self.mapID=mapID
-    self.karazhanContext=newKarazhanContext
+    self.specialMapContext=newSpecialMapContext
+    -- Historical alias retained for Karazhan diagnostics.
+    self.karazhanContext=newSpecialMapContext
     if mapChanged then self.stats.mapChanges=self.stats.mapChanges+1 end
+    self.hasPositionWork=false
     self.bindRevision=(self.bindRevision or 0)+1
     self.lastPlayerX=nil
     self.lastPlayerY=nil
@@ -846,19 +873,45 @@ function MM:RefreshPlan(mapID)
     self.planRevision=nil
     self.mapWidth=nil
     self.mapHeight=nil
+    self.hasPositionWork=false
+    if settleReason then self.pendingContextSettleReason=settleReason end
     self:HideAll()
     if QuestieOcto.ZoneBootstrap then QuestieOcto.ZoneBootstrap:Request(mapID,0.01) end
     return
   end
 
+  local hadPositionWork=self.hasPositionWork and true or false
   self.plan=plan
   self.itemStartPlan=itemStartPlan
   self.planRevision=QuestieOcto.PreparedMap.stateRevision
+  self.hasPositionWork=PlanHasMinimapWork(plan,itemStartPlan)
 
-  if karazhan and karazhan:IsSharedArea(mapID) then
-    -- Numeric map ID 3457 alone cannot identify Lower vs Upper Karazhan. If
-    -- ClassicAPI cannot prove the physical server-map context, fail closed.
-    self.mapWidth,self.mapHeight=karazhan:GetMinimapSize(self.karazhanContext)
+  -- No descriptors means there is literally nothing for the 20 Hz minimap
+  -- movement path to position. Starter-less battleground maps are the most
+  -- visible example. Stay completely idle here: do not retarget the native
+  -- map context, probe minimap zoom/indoor state, or ask for player position.
+  -- PREPARED_MAP_READY/NODES_READY/zone events wake the normal path immediately
+  -- if a real objective/service marker later becomes available.
+  if not self.hasPositionWork then
+    self.mapWidth=nil
+    self.mapHeight=nil
+    self.pendingContextSettleReason=nil
+    self:HideAll()
+    return
+  end
+
+  local contextReason=settleReason or self.pendingContextSettleReason
+  self.pendingContextSettleReason=nil
+  if contextReason or not hadPositionWork then
+    RestoreCurrentZoneMapContext(contextReason or "MINIMAP_PLAN_ACTIVE")
+    self:RefreshIndoorState(true)
+  end
+
+  if contextModule then
+    -- A shared numeric map ID does not identify which physical WorldMapArea is
+    -- active. Use the proven server-map context and fail closed if it cannot be
+    -- established instead of projecting nodes with the sibling map's span.
+    self.mapWidth,self.mapHeight=contextModule:GetMinimapSize(self.specialMapContext)
     if not self.mapWidth or not self.mapHeight then
       self:HideAll()
       return
@@ -1154,14 +1207,14 @@ function MM:OnUpdate(elapsed)
       return
     end
 
-    local karazhan=QuestieOcto.KarazhanContext
-    if karazhan and karazhan:IsSharedArea(current)
-       and karazhan:GetPhysicalContext(current)~=self.karazhanContext then
+    local contextModule=SharedMapContextModule(current)
+    if contextModule and contextModule:GetPhysicalContext(current)~=self.specialMapContext then
       self:RefreshPlan(current)
       return
     end
   end
 
+  if not self.hasPositionWork then return end
   self:UpdatePositions(false,current)
 end
 
@@ -1202,6 +1255,7 @@ function MM:Start()
       if MM.indoorProbeActive or (MM.indoorProbeIgnoreUntil and now<MM.indoorProbeIgnoreUntil) then
         return
       end
+      if not MM.hasPositionWork then return end
 
       -- Normal zoom changes can be resolved passively and UpdatePositions will
       -- rebuild geometry because lastZoom changed. If the client reports a
@@ -1234,9 +1288,7 @@ function MM:Start()
     end
 
     QuestieOcto.Scheduler:After(0.01,function()
-      RestoreCurrentZoneMapContext(eventName)
-      MM:RefreshIndoorState(true)
-      MM:RefreshPlan()
+      MM:RefreshPlan(nil,eventName)
     end,"minimap-zone-refresh")
   end)
 
@@ -1248,8 +1300,7 @@ function MM:Start()
     self.worldMapHideHooked=true
     local function OnWorldMapHide()
       QuestieOcto.Scheduler:After(0.01,function()
-        RestoreCurrentZoneMapContext("WORLD_MAP_HIDE")
-        MM:RefreshPlan()
+        MM:RefreshPlan(nil,"WORLD_MAP_HIDE")
       end,"minimap-worldmap-close")
     end
 
@@ -1267,9 +1318,7 @@ function MM:Start()
   end
 
   QuestieOcto.Scheduler:After(0.01,function()
-    RestoreCurrentZoneMapContext("START")
-    MM:RefreshIndoorState(true)
-    MM:RefreshPlan()
+    MM:RefreshPlan(nil,"START")
   end,"minimap-start")
 end
 

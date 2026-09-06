@@ -1,5 +1,57 @@
 # Questie-Octo Changelog
 
+## 1.11
+- Fixed missing map guidance for several exploration and scripted quest objectives, including custom Turtle WoW exploration quests.
+- Corrected **The Missing Diplomat** to point to Sentry Point and added the missing **Resupplying the Excavation** destination.
+- Added destination markers for the six Children's Week sightseeing quests.
+- Added map guidance for the scripted Murkdeep, Twilight Corrupter, Vartrus the Ancient, and Malfurion Stormrage encounters when their normal NPC spawns do not exist yet.
+
+## 1.10
+- Fixed **Data Rescue** guidance in Gnomeregan so the punch-card terminals are shown as the quest progresses.
+- Matrix Punchograph 3005-A now appears on the Gnomeregan Entrance map when you have a White Punch Card; the B, C, and D terminals appear at the correct dungeon locations for the later cards.
+- The marker automatically advances to the next terminal after your punch card is upgraded.
+
+## 1.09
+- Fixed clustered quest objectives sometimes disappearing on shared entrance/interior maps such as Wailing Caverns, Uldaman, Maraudon, Dire Maul, and Timbermaw Hold.
+- Item-start markers now stay on the correct entrance or dungeon map before they are grouped, including very rare zone-wide starter-item drops.
+- Full Nodes behavior and the existing Gnomeregan and Karazhan map handling are preserved.
+
+## 1.08
+- Fixed Wailing Caverns, Uldaman, Maraudon, Dire Maul, and Timbermaw Hold entrance maps sharing their dungeon/raid AreaTable ID and inheriting markers from the wrong map.
+- Corrected the minimap geometry used for each entrance/interior pair so objective nodes line up with the map the player is actually in.
+- Rebuilt stale Dire Maul and Timbermaw Hold locations against the current client/server maps, including Dire Maul interior AreaTriggers, and removed one stale Maraudon source location.
+- Sources that legitimately exist on both sides are kept on both maps and separated by their real coordinates instead of being hidden or assigned wholesale to one map.
+- Normal quest-loading speed, ZoneBootstrap batching, minimap update frequency, and Karazhan's existing fail-closed handling are unchanged.
+
+## 1.07
+- Fixed Gnomeregan's entrance map and dungeon map sharing AreaTable ID 721 and leaking each other's quest/objective/service markers.
+- Rebuilt Gnomeregan interior creature, object, and quest AreaTrigger coordinates against the current client WorldMapArea geometry and current server spawns, fixing nodes projected onto the wrong parts of the dungeon map.
+- Removed two stale Gnomeregan creature locations that no longer have current server spawns, while preserving sources such as the Mechanical Mailbox that legitimately exist in both entrance and interior contexts.
+- The split is presentation/map-context only: normal quest loading speed, ZoneBootstrap batching, minimap update frequency, and the rest of the world-map architecture are unchanged.
+
+## 1.06
+- Fixed instance/detail World Maps such as Razorfen Kraul being mistaken for the global World overview when the client reports a nonstandard continent ID.
+- A concrete non-World map texture now takes priority over the client's special continent sentinel, preserving the validated rapid World-overview protection while allowing dungeon maps to render their quest objectives.
+- When texture identity is briefly unavailable, Questie-Octo can use the native selected-zone label only when it resolves uniquely to real WorldMapArea artwork.
+- No quest-loading delay, polling, database change, or additional persistent map index was added.
+
+## 1.05
+- Fixed active dungeon quest objectives being visible on the minimap but missing from some dungeon/detail World Maps such as Razorfen Kraul.
+- World Map fallback identity now distinguishes duplicate AreaTable names using the current client's WorldMapArea data instead of dropping the map context.
+- The fix is generic for similarly duplicated dungeon/map names and does not add polling, slower map rendering, or hardcoded dungeon IDs.
+
+## 1.04
+- Fixed a World Map pin-pool error that could appear after map pins had been recycled and reused for a while.
+- The frame pool now uses Lua 5.0-safe list removal, preventing a stale pool size from returning a nil map pin.
+- Reloading the UI is no longer needed to recover from this specific map-pin reuse failure.
+- Includes the 1.03 battleground empty-map performance correction; normal quest/map response speed is unchanged.
+
+## 1.03
+- Fixed remaining unnecessary minimap work on battleground/other maps where Questie-Octo has no pins to display.
+- Starter-less compiled maps with no active objectives now publish an empty map plan immediately instead of queueing an empty zone-priority job.
+- Empty minimap plans now stay idle instead of continuously reading player position or probing/retargeting the native minimap context; real quest/objective markers still wake the normal fast path immediately.
+- This is a performance-only correction: normal zone quest loading speed and the existing 400-candidate fast ZoneBootstrap behavior are unchanged.
+
 ## 1.02
 - Hovering an active quest in the tracker now focuses that quest's active objective markers on both the World Map and minimap.
 - Other active quests' objective markers fade temporarily while hovered, then return immediately when the cursor leaves the quest.
