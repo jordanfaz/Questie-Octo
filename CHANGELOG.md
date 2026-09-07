@@ -1,5 +1,22 @@
 # Questie-Octo Changelog
 
+## 1.15
+- Removed exact visible RGB collisions between different active-quest objective colors while preserving the 1.12 palette's overall appearance.
+- Added tiny deterministic per-quest color tie-breaks so different quests do not quantize to the same map/minimap color, including in the Objective Color Vision accessibility modes when those quests can appear on the same map.
+
+## 1.14
+- Fixed active dungeon/elite/raid quests losing the `+` level marker in the Quest Log or tracker when the native client quest tag is missing.
+- Quest Log, tracker, World Map, and minimap now use the same audited quest-type fallback for `[level+]` presentation.
+
+## 1.13
+- Fixed missing dungeon `+` markers on Razorfen Kraul quests whose current server quest type is incorrectly stored as a normal quest.
+- **The Gnarled Bramblehide**, **Tainted Brambleheart**, and **Razorfen Grog** now display `[level+]` before acceptance, matching their dungeon-only objectives.
+
+## 1.12
+- Fixed batches of nearby quest IDs receiving almost identical objective colors on the World Map and minimap, especially in dense custom zones such as Grim Reaches.
+- Active quest objective colors now spread neighboring quests across a much wider bright palette while keeping each quest's color stable across maps, objectives, and sessions.
+- Existing Objective Color Vision accessibility modes continue to use the same central quest-color path.
+
 ## 1.11
 - Fixed missing map guidance for several exploration and scripted quest objectives, including custom Turtle WoW exploration quests.
 - Corrected **The Missing Diplomat** to point to Sentry Point and added the missing **Resupplying the Excavation** destination.

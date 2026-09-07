@@ -8,11 +8,12 @@ local function Settings()
   return QuestieOcto.MinimapSettings
 end
 
-local questColorCache={}
+local hashColorCache={}
+local questPaletteCache={}
 
 local function HashColor(text)
   text=tostring(text or "")
-  local cached=questColorCache[text]
+  local cached=hashColorCache[text]
   if cached then return cached[1],cached[2],cached[3] end
 
   -- pfQuest-style full-range deterministic RGB hash. Questie-Octo keys this
@@ -35,15 +36,98 @@ local function HashColor(text)
   local b=remainder-g*256
   r,g,b=r/255,g/255,b/255
 
-  questColorCache[text]={r,g,b}
+  hashColorCache[text]={r,g,b}
+  return r,g,b
+end
+
+-- Quest IDs created together are commonly sequential. Feeding their decimal
+-- strings directly into the old pfQuest-style RGB hash kept the leading bytes
+-- identical, which made batches such as Grim Reaches collapse into near-copy
+-- purple/pink/blue colors. Use the numeric quest ID as the stable identity and
+-- spread adjacent IDs around the hue wheel with a bitless integer permutation.
+-- 65521 is prime and 40494/65521 is a close rational approximation of the
+-- golden-ratio conjugate, so neighboring IDs are deliberately far apart. A
+-- later per-quest tie-break handles distant rational returns of this sequence.
+local function HSVToRGB(h,s,v)
+  h=math.mod(tonumber(h) or 0,1)
+  s=tonumber(s) or 0
+  v=tonumber(v) or 0
+
+  local scaled=h*6
+  local sector=math.floor(scaled)
+  local f=scaled-sector
+  local p=v*(1-s)
+  local q=v*(1-s*f)
+  local t=v*(1-s*(1-f))
+  sector=math.mod(sector,6)
+
+  if sector==0 then return v,t,p end
+  if sector==1 then return q,v,p end
+  if sector==2 then return p,v,t end
+  if sector==3 then return p,q,v end
+  if sector==4 then return t,p,v end
+  return v,p,q
+end
+
+local function Clamp01(v)
+  if v<0 then return 0 end
+  if v>1 then return 1 end
+  return v
+end
+
+local function QuestPaletteTieBreak(id,r,g,b)
+  -- Keep the 1.12 hue/saturation/value palette visually intact, but give each
+  -- quest a tiny independent RGB signature. The old secondary bands repeat
+  -- every 30 IDs and the hue sequence has close rational returns, so some
+  -- distant quest IDs could quantize to the exact same visible RGB value even
+  -- though their full-precision HSV values differed. The independent 65519
+  -- modular sequence changes each channel by at most two 8-bit steps.
+  local tone=math.mod(id*26367,65519)
+  local rStep=math.mod(tone,5)-2
+  local gStep=math.mod(math.floor(tone/5),5)-2
+  local bStep=math.mod(math.floor(tone/25),5)-2
+  return Clamp01(r+rStep/255),Clamp01(g+gStep/255),Clamp01(b+bStep/255)
+end
+
+local function AccessibilityTieBreak(id,r,g,b)
+  -- Accessibility remaps can collapse different base colors onto one display
+  -- RGB value after dark-color lifting and 8-bit output. A second, smaller
+  -- independent signature preserves map-local separation without changing the
+  -- character of the selected accessibility palette.
+  local tone=math.mod(id*58788,65519)
+  local rStep=math.mod(tone,5)-2
+  local gStep=math.mod(math.floor(tone/5),5)-2
+  local bStep=math.mod(math.floor(tone/25),5)-2
+  return Clamp01(r+rStep/510),Clamp01(g+gStep/510),Clamp01(b+bStep/510)
+end
+
+local function QuestPaletteColor(questID)
+  local id=tonumber(questID) or 0
+  id=math.floor(id)
+
+  local cached=questPaletteCache[id]
+  if cached then return cached[1],cached[2],cached[3] end
+
+  local hueIndex=math.mod(id*40494,65521)
+  local hue=hueIndex/65521
+
+  -- Small deterministic saturation/value bands add a second visual cue when
+  -- two non-neighboring IDs happen to land near one another on the hue wheel,
+  -- while keeping Full Nodes bright enough for dark World Map backgrounds.
+  local saturation=0.72+0.04*math.mod(id*17+3,6)
+  local value=0.88+0.03*math.mod(id*23+1,5)
+  local r,g,b=HSVToRGB(hue,saturation,value)
+  r,g,b=QuestPaletteTieBreak(id,r,g,b)
+
+  questPaletteCache[id]={r,g,b}
   return r,g,b
 end
 
 -- Accessibility modes are deliberate color remaps, not simulations. The
--- original 1.0.95 hash remains the identity source so Default is byte-for-byte
--- unchanged and every quest keeps one deterministic color across map surfaces.
--- The remaps route channel differences toward combinations that remain useful
--- for the selected color-vision family, then gently lift only very dark results.
+-- deterministic quest palette remains the identity source, so every quest keeps
+-- one stable color across map surfaces. The remaps route channel differences
+-- toward combinations intended for the selected color-vision family, then
+-- gently lift only very dark results.
 local function LiftDarkColor(r,g,b)
   -- Simple sRGB luma is sufficient here: this is a tiny presentation guard,
   -- not a contrast claim against every possible World Map background.
@@ -80,10 +164,12 @@ local function AccessibleQuestColor(mode,r,g,b)
 end
 
 function V:GetQuestColor(questID)
-  local r,g,b=HashColor("quest"..tostring(tonumber(questID) or 0))
+  local id=math.floor(tonumber(questID) or 0)
+  local r,g,b=QuestPaletteColor(id)
   local mode=Settings() and Settings():Get("objectiveColorVisionMode") or "default"
   if mode=="default" then return r,g,b end
-  return AccessibleQuestColor(mode,r,g,b)
+  r,g,b=AccessibleQuestColor(mode,r,g,b)
+  return AccessibilityTieBreak(id,r,g,b)
 end
 
 function V:GetObjectiveColor(questID,objectiveIndex)
